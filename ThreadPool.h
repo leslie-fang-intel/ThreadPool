@@ -11,6 +11,11 @@
 #include <functional>
 #include <stdexcept>
 
+auto timestamp1 = std::chrono::high_resolution_clock::now();
+auto timestamp2 = std::chrono::high_resolution_clock::now();
+auto timestamp3 = std::chrono::high_resolution_clock::now();
+auto timestamp4 = std::chrono::high_resolution_clock::now();
+
 class ThreadPool {
 public:
     ThreadPool(size_t);
@@ -46,6 +51,7 @@ inline ThreadPool::ThreadPool(size_t threads)
                         std::unique_lock<std::mutex> lock(this->queue_mutex);
                         this->condition.wait(lock,
                             [this]{ return this->stop || !this->tasks.empty(); });
+                        timestamp2 = std::chrono::high_resolution_clock::now();
                         if(this->stop && this->tasks.empty())
                             return;
                         task = std::move(this->tasks.front());
@@ -53,6 +59,7 @@ inline ThreadPool::ThreadPool(size_t threads)
                     }
 
                     task();
+                    timestamp3 = std::chrono::high_resolution_clock::now();
                 }
             }
         );
