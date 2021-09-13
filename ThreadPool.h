@@ -11,16 +11,21 @@
 #include <functional>
 #include <stdexcept>
 
-auto timestamp1 = std::chrono::high_resolution_clock::now();
-auto timestamp2 = std::chrono::high_resolution_clock::now();
-auto timestamp3 = std::chrono::high_resolution_clock::now();
-auto timestamp4 = std::chrono::high_resolution_clock::now();
+// auto timestamp1 = std::chrono::high_resolution_clock::now();
+// auto timestamp2 = std::chrono::high_resolution_clock::now();
+// auto timestamp3 = std::chrono::high_resolution_clock::now();
+// auto timestamp4 = std::chrono::high_resolution_clock::now();
+
+unsigned cycles_low, cycles_high, cycles_low1, cycles_high1;
+unsigned cycles_low2, cycles_high2, cycles_low3, cycles_high3;
+uint64_t timestamp1, timestamp2, timestamp3, timestamp4;
+
 
 class ThreadPool {
 public:
     ThreadPool(size_t);
     template<class F, class... Args>
-    auto enqueue(F&& f, Args&&... args) 
+    inline auto enqueue(F&& f, Args&&... args)
         -> std::future<typename std::result_of<F(Args...)>::type>;
     ~ThreadPool();
 private:
@@ -51,7 +56,11 @@ inline ThreadPool::ThreadPool(size_t threads)
                         std::unique_lock<std::mutex> lock(this->queue_mutex);
                         this->condition.wait(lock,
                             [this]{ return this->stop || !this->tasks.empty(); });
-                        timestamp2 = std::chrono::high_resolution_clock::now();
+                        asm volatile ( "CPUID\n\t"
+                                    "RDTSC\n\t"
+                                    "mov %%edx, %0\n\t"
+                                    "mov %%eax, %1\n\t": "=r" (cycles_high1), "=r" (cycles_low1)::"%rax", "%rbx", "%rcx", "%rdx");
+
                         if(this->stop && this->tasks.empty())
                             return;
                         task = std::move(this->tasks.front());
@@ -59,7 +68,7 @@ inline ThreadPool::ThreadPool(size_t threads)
                     }
 
                     task();
-                    timestamp3 = std::chrono::high_resolution_clock::now();
+                    //timestamp3 = std::chrono::high_resolution_clock::now();
                 }
             }
         );
@@ -67,7 +76,7 @@ inline ThreadPool::ThreadPool(size_t threads)
 
 // add new work item to the pool
 template<class F, class... Args>
-auto ThreadPool::enqueue(F&& f, Args&&... args) 
+inline auto ThreadPool::enqueue(F&& f, Args&&... args)
     -> std::future<typename std::result_of<F(Args...)>::type>
 {
     using return_type = typename std::result_of<F(Args...)>::type;
